@@ -1,0 +1,1 @@
+MainActor.assumeIsolated { MechaHUDApp.main() }
