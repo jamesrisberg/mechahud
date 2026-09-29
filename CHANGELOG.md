@@ -6,6 +6,8 @@ All notable changes to MechaHUD are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-09-29
+
 ### Added
 - `agent-sessions` HUDKit capability, declared on the `dashboard` panel: MacHUD's broker can find
   MechaHUD as a session provider without naming it. `action open-session id=` accepts a
@@ -14,6 +16,10 @@ All notable changes to MechaHUD are documented here. The format follows
   mechaclaude could start a new detached session right now (`canStart`, and `problem`/`fix` when
   it can't — the bridge unreachable, or `tmux`/the `mclaude` wrapper not found). The same problem
   is shown in the panel's session strip and in MechaHUD's own status-bar menu.
+
+### Changed
+- Built with HUDKit 0.2.0: `hello` reports contract version 0.2.0, and a socket request's
+  `args` values that are JSON objects or arrays reach the app as JSON text.
 
 ### Fixed
 - The bridge token file follows mechaclaude's own `MCLAUDE_STATE_DIR` override, else
