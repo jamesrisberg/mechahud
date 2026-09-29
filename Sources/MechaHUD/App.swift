@@ -15,6 +15,10 @@ public final class MechaHUDApp: NSObject, NSApplicationDelegate {
     private var server: HUDSocketServer!
     private var router: HUDControlRouter!
     private var statusItem: NSStatusItem!
+    /// Disabled line (with its separator) shown only while `MechaHUDHost.spawnReadiness` has a
+    /// problem: mirrors the `sessions` reply's `problem`/`fix` where the user actually looks.
+    private var spawnProblemItem: NSMenuItem!
+    private var spawnProblemSeparator: NSMenuItem!
 
     public static func main() {
         let args = CommandLine.arguments
@@ -38,6 +42,9 @@ public final class MechaHUDApp: NSObject, NSApplicationDelegate {
         server = HUDSocketServer(path: AppEnvironment.socketPath, label: "xyz.machud.mechahud.socket")
         router = HUDControlRouter(host: host, server: server, manifest: host.manifest)
         router.install()
+        // The `agent-sessions` capability's own verb (not `action`, so MacHUD's broker can ask
+        // every provider the same way regardless of its app-specific action names).
+        server.register("sessions") { [weak host] _, done in done(host?.sessionsPayload() ?? ["ok": false, "error": "no host"]) }
         // A `--snapshot` run leaves the socket and the hotkey to a running MechaHUD.
         if AppEnvironment.snapshotPath == nil, !server.start() { NSLog("MechaHUD: could not start socket at %@", server.path) }
 
@@ -108,6 +115,13 @@ public final class MechaHUDApp: NSObject, NSApplicationDelegate {
         statusItem.button?.image = HUDStatusIcon.image(fallbackSymbol: "terminal", accessibilityDescription: "MechaHUD")
         statusItem.button?.imagePosition = .imageLeading
         let menu = NSMenu()
+        spawnProblemItem = NSMenuItem(title: "", action: nil, keyEquivalent: "")
+        spawnProblemItem.isEnabled = false
+        spawnProblemItem.isHidden = true
+        spawnProblemSeparator = .separator()
+        spawnProblemSeparator.isHidden = true
+        menu.addItem(spawnProblemItem)
+        menu.addItem(spawnProblemSeparator)
         menu.addItem(item("Show MechaHUD", #selector(showPanel)))
         menu.addItem(item("Show/Hide Panel (\(Self.hotKey.display))", #selector(togglePanel)))
         menu.addItem(item("Compact", #selector(compactMode)))
@@ -133,6 +147,16 @@ public final class MechaHUDApp: NSObject, NSApplicationDelegate {
     private func refreshStatusItem() {
         statusItem?.button?.title = host?.badge.map { " \($0)" } ?? ""
         statusItem?.button?.toolTip = "MechaHUD: \(host?.status ?? "")"
+        let readiness = host?.spawnReadiness
+        panel?.ui.spawnReadiness = readiness ?? .ready
+        if let problem = readiness?.problem {
+            spawnProblemItem?.title = readiness?.fix.map { "\(problem) — \($0)" } ?? problem
+            spawnProblemItem?.isHidden = false
+            spawnProblemSeparator?.isHidden = false
+        } else {
+            spawnProblemItem?.isHidden = true
+            spawnProblemSeparator?.isHidden = true
+        }
     }
 
     /// Summons the panel at its last frame, in its last shown mode.

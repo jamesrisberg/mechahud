@@ -9,7 +9,7 @@
       "symbol": "terminal",
       "defaultSize": [900, 640],
       "compactSize": [900, 102],
-      "capabilities": [],
+      "capabilities": ["agent-sessions"],
       "verbs": ["show", "hide", "toggle", "frame", "mode", "open-session", "approve", "deny"],
       "kind": "windowed"
     }

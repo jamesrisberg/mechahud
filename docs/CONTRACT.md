@@ -13,8 +13,12 @@ This page lists what MechaHUD adds.
 
 - Manifest: `Sources/MechaHUD/Resources/machud.json`: app `xyz.machud.mechahud`, socket
   `mechahud`, one panel `dashboard` (`kind: windowed`, title "Claude Sessions", symbol
-  `terminal`, default 900x640, compact 900x102). `MechaHUDHost.embeddedManifest` mirrors it for
-  `swift run` and tests.
+  `terminal`, default 900x640, compact 900x102, capability `agent-sessions`).
+  `MechaHUDHost.embeddedManifest` mirrors it for `swift run` and tests.
+- Capability `agent-sessions`: declared in the `dashboard` panel's `capabilities`, so MacHUD's
+  broker (`sessions providers` / `sessions open id=`, see `../machud/docs/API.md`) finds MechaHUD
+  as a provider without naming it. A plain string for now, matching HUDKit main
+  (`../hudkit`); switches to `HUDKit`'s own constant once `wave/voice-3/capability` merges.
 - Windowed panel: shown where it was last left, in its last shown mode (`full`, `compact` = the
   session strip only). `parked` slides it off a screen edge with `peek` points showing; the
   `edge=`/`peek=` MacHUD passes are remembered, and until an edge is named it parks at the edge
@@ -39,8 +43,26 @@ This page lists what MechaHUD adds.
 | `action open-session` | `id=<sessionKey, sessionId or pid>` | shows the panel full and deep-links the dashboard to the session. `{session}` |
 | `action approve` / `deny` | `id=` as above | answers the session's permission prompt through `POST /api/control`. `{status, session, sent, ack}`; not ok unless the session is waiting and the bridge applied it |
 | `action snapshot` | `path=` (optional, default `$TMPDIR/mechahud-snapshot.png`) | renders the panel to a PNG (the glass backdrop comes out dark). `{path}` |
+| `sessions` | | the `agent-sessions` capability's own verb (registered directly on the socket, not under `action`, so MacHUD's broker addresses every provider identically): `{sessions: [{id, title, cwd, state}], canStart, problem?, fix?}` |
 | `quit` | | replies, then quits (the socket file is removed) |
 | `help` | | lists the registered commands |
+
+### `sessions`
+
+One row per live session from the bridge's fleet feed: `id` is its `sessionKey`
+(`claude:<sessionId>`, or `codex:`/`lux:` for other harnesses), `title` the display name, `cwd`
+the session's working directory (`""` if unknown), `state` the fleet status label (`working`,
+`waiting`, `idle`, `connecting`, `closed`, or the bridge's own string). `action open-session` also
+accepts the same `sessionKey`, plus a bare `sessionId` or `pid`.
+
+`canStart`/`problem?`/`fix?` say whether mechaclaude could start a **new** detached session right
+now (`spawn.mjs`, which MechaHUD's own UI does not expose — the dashboard's own "New session" flow
+does): the bridge must be reachable, and `tmux` and the `mclaude` wrapper must be found (`PATH`,
+else `/opt/homebrew/bin`, `/usr/local/bin`, `/usr/bin` for tmux and `~/.local/bin/mclaude`).
+`problem`/`fix` are absent once `canStart` is `true`. MechaHUD only detects; it never installs
+anything. The same problem (with its fix) is mirrored in the panel's session strip (as its status
+text and a tooltip on the connection dot) and in a disabled line at the top of MechaHUD's own
+status-bar menu, so it is visible without querying the socket.
 
 ## Settings
 

@@ -31,8 +31,11 @@ public protocol BridgeControlling: AnyObject {
 ///
 /// - `panel show/hide/toggle/frame/mode` drive the `PanelPresenting`; `mode parked` honours
 ///   and remembers the `edge=`/`peek=` MacHUD passes (HUDKit 0.2).
-/// - `state`: badge = sessions waiting on a permission prompt, status = the fleet summary.
+/// - `state`: badge = sessions waiting on a permission prompt, status = the fleet summary (plus
+///   the spawn-readiness problem, once the bridge is up but mechaclaude cannot start a session).
 /// - `action open-session id=`, `action approve id=`, `action deny id=`.
+/// - `sessions` (registered on the server directly, the `agent-sessions` capability's own verb):
+///   `sessionsPayload()`.
 /// - `onStateChange` fires when the feed changes the reported state, or an action changes
 ///   visibility (wire it to `publishState`). Panel verbs don't fire it: `HUDControlRouter`
 ///   publishes after every `panel` command itself, and UI-initiated changes go through
@@ -49,6 +52,10 @@ public final class MechaHUDHost: HUDPanelHost {
     public private(set) var parking = ParkingSpot(peek: 16)
     public private(set) var feed = SessionFeed()
     public private(set) var reachability: BridgeReachability = .connecting
+    /// Set in tests to avoid depending on this machine's tmux/mclaude install; nil (the default)
+    /// computes it for real from `reachability`.
+    public var spawnReadinessOverride: SpawnReadiness?
+    public var spawnReadiness: SpawnReadiness { spawnReadinessOverride ?? SpawnReadiness.current(reachability: reachability) }
 
     /// Reported by `hello`; the bundle's machud.json when present.
     public var manifest: HUDManifest = HUDManifest.main ?? MechaHUDHost.embeddedManifest
@@ -59,6 +66,11 @@ public final class MechaHUDHost: HUDPanelHost {
         panels: [HUDManifest.Panel(id: panelID, title: "Claude Sessions", symbol: "terminal",
                                    defaultSize: HUDSize(width: 900, height: 640),
                                    compactSize: HUDSize(width: 900, height: 102),
+                                   // "agent-sessions": MacHUD's broker finds a provider by this
+                                   // capability (open-session/sessions below). HUDKit's own
+                                   // constant lands with wave/voice-3/capability; a plain string
+                                   // until that branch merges into ../hudkit.
+                                   capabilities: ["agent-sessions"],
                                    verbs: ["show", "hide", "toggle", "frame", "mode", "open-session", "approve", "deny"],
                                    kind: .windowed)])
 
@@ -92,7 +104,9 @@ public final class MechaHUDHost: HUDPanelHost {
 
     public var status: String {
         switch reachability {
-        case .connected: return feed.summary
+        case .connected:
+            guard let problem = spawnReadiness.problem else { return feed.summary }
+            return "\(feed.summary) — \(problem)"
         case .connecting: return "connecting"
         case .unreachable: return "dashboard not running"
         case .unauthorized: return "dashboard rejected tokens"
@@ -154,6 +168,20 @@ public final class MechaHUDHost: HUDPanelHost {
     public func updateSettings(_ values: [String: String]) throws {
         do { try appSettings.apply(values) } catch { throw HUDControlError.invalid("\(error)") }
         onSettingsChange?()
+    }
+
+    /// The `sessions` socket command (the `agent-sessions` HUDKit capability): every live session
+    /// plus whether mechaclaude could start a new one right now. Registered directly on the
+    /// server (not through `action`) since the broker addresses every provider the same way.
+    public func sessionsPayload() -> [String: Any] {
+        let sessions = feed.sessions.map { row -> [String: Any] in
+            ["id": row.sessionKey, "title": row.displayName, "cwd": row.cwd ?? "", "state": row.status.label]
+        }
+        let readiness = spawnReadiness
+        var reply: [String: Any] = ["ok": true, "sessions": sessions, "canStart": readiness.canStart]
+        if let problem = readiness.problem { reply["problem"] = problem }
+        if let fix = readiness.fix { reply["fix"] = fix }
+        return reply
     }
 
     public static let actions = ["open-session", "approve", "deny", "snapshot"]
