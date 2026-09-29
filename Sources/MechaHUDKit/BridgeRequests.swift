@@ -98,7 +98,10 @@ public enum BridgeRequests {
     }
 }
 
-/// `~/.claude/state-taps/web-tokens.json`, written by the bridge at start (mode 0600).
+/// `<state dir>/web-tokens.json`, written by the bridge at start (mode 0600). The state dir is
+/// mechaclaude's own `MCLAUDE_STATE_DIR` when set, else `~/.claude/state-taps` (mirrors
+/// mechaclaude's `paths.mjs` `stateDir`/`webTokensFile`), so an isolated MechaHUD run with
+/// `MCLAUDE_STATE_DIR` pointed at a temp directory never reads the real bridge's tokens.
 public struct WebTokens: Codable, Equatable, Sendable {
     public var readToken: String
     public var controlToken: String
@@ -108,12 +111,19 @@ public struct WebTokens: Codable, Equatable, Sendable {
         self.controlToken = controlToken
     }
 
-    public static var defaultURL: URL {
-        FileManager.default.homeDirectoryForCurrentUser
-            .appendingPathComponent(".claude/state-taps/web-tokens.json")
+    /// mechaclaude's state directory: `MCLAUDE_STATE_DIR`, else `~/.claude/state-taps`.
+    public static func stateDirectory(environment: [String: String] = ProcessInfo.processInfo.environment) -> URL {
+        if let override = environment["MCLAUDE_STATE_DIR"], !override.isEmpty {
+            return URL(fileURLWithPath: override)
+        }
+        return FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent(".claude/state-taps")
     }
 
-    public static func load(from url: URL = WebTokens.defaultURL) -> WebTokens? {
+    public static func defaultURL(environment: [String: String] = ProcessInfo.processInfo.environment) -> URL {
+        stateDirectory(environment: environment).appendingPathComponent("web-tokens.json")
+    }
+
+    public static func load(from url: URL = WebTokens.defaultURL()) -> WebTokens? {
         guard let data = try? Data(contentsOf: url) else { return nil }
         return try? JSONDecoder().decode(WebTokens.self, from: data)
     }

@@ -72,10 +72,14 @@ status-bar menu, so it is visible without querying the socket.
 | `readToken` | string | empty: read from the token file |
 | `controlToken` | string | empty: read from the token file |
 | `mechaclaudePath` | path | `~/dev/mechaclaude` |
-| `tokenFile` | path | `~/.claude/state-taps/web-tokens.json` |
+| `tokenFile` | path | `$MCLAUDE_STATE_DIR/web-tokens.json`, else `~/.claude/state-taps/web-tokens.json` |
 
 Stored in the app's UserDefaults (`xyz.machud.mechahud`) with the panel frame (`panelFrame`), or
 in `$MECHAHUD_HOME/preferences.plist`. MechaHUD ships no `settings.json` schema.
+
+`MCLAUDE_STATE_DIR` is mechaclaude's own state directory override (`paths.mjs` `stateDir`); the
+default token file follows it exactly as mechaclaude's bridge does, so a MechaHUD run isolated
+with `MCLAUDE_STATE_DIR` set to a temp directory never reads the real bridge's tokens.
 
 ## Menu bar consolidation
 

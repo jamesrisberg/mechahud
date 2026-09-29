@@ -36,7 +36,7 @@ public final class AppSettings {
     }
 
     public var tokenFile: URL {
-        get { defaults.string(forKey: Key.tokenFile.rawValue).map { URL(fileURLWithPath: ($0 as NSString).expandingTildeInPath) } ?? WebTokens.defaultURL }
+        get { defaults.string(forKey: Key.tokenFile.rawValue).map { URL(fileURLWithPath: ($0 as NSString).expandingTildeInPath) } ?? WebTokens.defaultURL() }
         set { defaults.set(newValue.path, forKey: Key.tokenFile.rawValue) }
     }
 

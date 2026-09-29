@@ -15,6 +15,11 @@ All notable changes to MechaHUD are documented here. The format follows
   it can't — the bridge unreachable, or `tmux`/the `mclaude` wrapper not found). The same problem
   is shown in the panel's session strip and in MechaHUD's own status-bar menu.
 
+### Fixed
+- The bridge token file follows mechaclaude's own `MCLAUDE_STATE_DIR` override, else
+  `~/.claude/state-taps/web-tokens.json`, so an isolated MechaHUD run with `MCLAUDE_STATE_DIR`
+  set never reads the real bridge's tokens.
+
 ## [0.1.0] - 2026-09-27
 
 ### Added
