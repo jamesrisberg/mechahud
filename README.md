@@ -24,7 +24,10 @@ Space it was opened on, and it has a Dock icon and ⌘-Tab entry while it is on 
 - If the dashboard isn't reachable, the panel says so and offers a button that runs
   `node webctl.mjs start` in your mechaclaude checkout.
 
-Tokens are read from `~/.claude/state-taps/web-tokens.json` on every (re)connect.
+Tokens are read from `web-tokens.json` in mechaclaude's state directory on every (re)connect:
+`$MCLAUDE_STATE_DIR`, else `~/.claude/state-taps` (the same variable mechaclaude itself honours),
+so an isolated MechaHUD run with `MCLAUDE_STATE_DIR` pointed elsewhere never reads the real
+bridge's tokens.
 
 ## Install
 
@@ -81,7 +84,7 @@ mechahud quit
 | `readToken` | string | empty (token file) | manual read token; reported as `(set)` / `(file)` |
 | `controlToken` | string | empty (token file) | manual control token; reported likewise |
 | `mechaclaudePath` | path | `~/dev/mechaclaude` | where `node webctl.mjs start` runs |
-| `tokenFile` | path | `~/.claude/state-taps/web-tokens.json` | where tokens are read from |
+| `tokenFile` | path | `$MCLAUDE_STATE_DIR/web-tokens.json`, else `~/.claude/state-taps/web-tokens.json` | where tokens are read from |
 
 `settings get` also reports `panelFrame`, the panel's last full-mode frame (set by moving or
 resizing the panel, or `panel frame`). Set them in the panel's Settings card or with

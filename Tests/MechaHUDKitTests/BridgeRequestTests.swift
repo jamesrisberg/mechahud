@@ -83,4 +83,27 @@ final class BridgeRequestTests: XCTestCase {
         s.controlTokenOverride = ""
         XCTAssertNil(s.endpoint(), "no read token anywhere")
     }
+
+    func testStateDirectoryHonoursMCLAUDE_STATE_DIR() {
+        let dir = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        XCTAssertEqual(WebTokens.stateDirectory(environment: ["MCLAUDE_STATE_DIR": dir.path]), dir)
+        XCTAssertEqual(WebTokens.defaultURL(environment: ["MCLAUDE_STATE_DIR": dir.path]),
+                       dir.appendingPathComponent("web-tokens.json"))
+    }
+
+    func testStateDirectoryFallsBackToTheRealStateTapsWithoutTheOverride() {
+        let realTaps = FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent(".claude/state-taps")
+        XCTAssertEqual(WebTokens.stateDirectory(environment: [:]), realTaps)
+        XCTAssertEqual(WebTokens.defaultURL(environment: [:]), realTaps.appendingPathComponent("web-tokens.json"))
+        XCTAssertEqual(WebTokens.stateDirectory(environment: ["MCLAUDE_STATE_DIR": ""]), realTaps,
+                       "an empty override is not a real path")
+    }
+
+    func testLoadReadsFromAnIsolatedStateDirectory() throws {
+        let dir = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        try Data(#"{"readToken":"R","controlToken":"C"}"#.utf8).write(to: dir.appendingPathComponent("web-tokens.json"))
+        let isolated = WebTokens.defaultURL(environment: ["MCLAUDE_STATE_DIR": dir.path])
+        XCTAssertEqual(WebTokens.load(from: isolated), WebTokens(readToken: "R", controlToken: "C"))
+    }
 }
