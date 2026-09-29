@@ -52,10 +52,12 @@ gear button opens Settings. MechaHUD takes no drops.
 
 ## MacHUD contract
 
-Panel `dashboard`, kind `windowed`, socket `mechahud`. Verbs: the HUDKit set (`hello`, `state`,
-`subscribe`, `panel show|hide|toggle|frame|mode`, `settings get|set`, `action`, `quit`) plus the
-actions `open-session`, `approve`, `deny` and `snapshot`. `state` reports the number of sessions
-waiting on a permission prompt as the badge. Full reference: [docs/CONTRACT.md](docs/CONTRACT.md).
+Panel `dashboard`, kind `windowed`, socket `mechahud`, capability `agent-sessions` (so MacHUD's
+broker finds MechaHUD as a session provider without naming it). Verbs: the HUDKit set (`hello`,
+`state`, `subscribe`, `panel show|hide|toggle|frame|mode`, `settings get|set`, `action`, `quit`)
+plus the actions `open-session`, `approve`, `deny` and `snapshot`, and the capability's own
+`sessions` verb. `state` reports the number of sessions waiting on a permission prompt as the
+badge. Full reference: [docs/CONTRACT.md](docs/CONTRACT.md).
 
 ```sh
 mechahud hello
@@ -63,6 +65,7 @@ mechahud state                                   # badge = sessions waiting on p
 mechahud panel show id=dashboard                 # hide / toggle
 mechahud panel mode id=dashboard compact         # full / parked [edge= peek=]
 mechahud panel frame id=dashboard x=100 y=100 w=900 h=640
+mechahud sessions                                # every live session, plus whether mechaclaude can start one
 mechahud action name=open-session id=claude:1234
 mechahud action name=approve id=claude:1234      # deny likewise
 mechahud settings set mechaclaudePath=~/dev/mechaclaude

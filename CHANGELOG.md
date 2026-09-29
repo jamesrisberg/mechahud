@@ -6,6 +6,15 @@ All notable changes to MechaHUD are documented here. The format follows
 
 ## [Unreleased]
 
+### Added
+- `agent-sessions` HUDKit capability, declared on the `dashboard` panel: MacHUD's broker can find
+  MechaHUD as a session provider without naming it. `action open-session id=` accepts a
+  mechaclaude session key (`claude:<sessionId>`, or `codex:`/`lux:`), a bare session id or a pid.
+- `sessions` socket command: every live session (`id`, `title`, `cwd`, `state`) plus whether
+  mechaclaude could start a new detached session right now (`canStart`, and `problem`/`fix` when
+  it can't — the bridge unreachable, or `tmux`/the `mclaude` wrapper not found). The same problem
+  is shown in the panel's session strip and in MechaHUD's own status-bar menu.
+
 ## [0.1.0] - 2026-09-27
 
 ### Added

@@ -43,6 +43,9 @@ final class HostTests: XCTestCase {
         let defaults = UserDefaults(suiteName: "mechahud-host-\(UUID().uuidString)")!
         host = MechaHUDHost(presenter: presenter, bridge: bridge, settings: AppSettings(defaults: defaults))
         host.manifest = MechaHUDHost.embeddedManifest
+        // The default computes tmux/mclaude detection for real; pin it so every test but the
+        // readiness ones below is independent of what is actually installed on this Mac.
+        host.spawnReadinessOverride = .ready
         stateChanges = 0
         host.onStateChange = { [unowned self] in self.stateChanges += 1 }
     }
@@ -205,6 +208,43 @@ final class HostTests: XCTestCase {
         // a sessionId also resolves
         let bySid = await run("action", ["name": "open-session", "id": "0b9d7c1e-1111-4a4a-9c9c-2f2f2f2f2f2f"])
         XCTAssertEqual(bySid["session"] as? String, "claude:4242")
+    }
+
+    func testSessionsPayloadListsRowsAndReadiness() {
+        host.update(feed: feed(Samples.busyRow, Samples.waitingRow), reachability: .connected)
+        host.spawnReadinessOverride = .ready
+        let r = host.sessionsPayload()
+        XCTAssertEqual(r["ok"] as? Bool, true)
+        XCTAssertEqual(r["canStart"] as? Bool, true)
+        XCTAssertNil(r["problem"])
+        XCTAssertNil(r["fix"])
+        let sessions = try! XCTUnwrap(r["sessions"] as? [[String: Any]])
+        XCTAssertEqual(sessions.map { $0["id"] as? String }, ["claude:4242", "claude:5151"])
+        XCTAssertEqual(sessions[0]["title"] as? String, "Build MechaHUD")
+        XCTAssertEqual(sessions[0]["cwd"] as? String, "/Users/jrisberg/dev/mechahud")
+        XCTAssertEqual(sessions[0]["state"] as? String, "working")
+        XCTAssertEqual(sessions[1]["state"] as? String, "waiting")
+    }
+
+    func testSessionsPayloadSurfacesASpawnReadinessProblem() {
+        host.update(feed: feed(Samples.busyRow), reachability: .connected)
+        host.spawnReadinessOverride = SpawnReadiness(canStart: false, problem: "tmux is not installed", fix: "brew install tmux")
+        let r = host.sessionsPayload()
+        XCTAssertEqual(r["canStart"] as? Bool, false)
+        XCTAssertEqual(r["problem"] as? String, "tmux is not installed")
+        XCTAssertEqual(r["fix"] as? String, "brew install tmux")
+        XCTAssertTrue(host.status.hasSuffix("tmux is not installed"), "the same problem is mirrored in the panel/menu status")
+    }
+
+    func testSessionsCommandIsRegisteredOnTheSocketDirectly() async {
+        // `sessions` is not one of HUDControlRouter's verbs (it is registered on the server, like
+        // MechaHUDApp does): the router itself must not know it.
+        let unknown = await run("sessions")
+        XCTAssertEqual(unknown["error"] as? String, "unknown command sessions")
+    }
+
+    func testManifestDeclaresTheAgentSessionsCapability() {
+        XCTAssertEqual(MechaHUDHost.embeddedManifest.panel(id: "dashboard")?.capabilities, ["agent-sessions"])
     }
 
     func testSettingsGetSet() async {

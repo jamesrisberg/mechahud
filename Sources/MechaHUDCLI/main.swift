@@ -15,6 +15,7 @@ usage: mechahud <command> [key=value ...]
   panel show|hide|toggle id=dashboard
   panel mode id=dashboard full|compact|parked [edge= peek=]
   panel frame id=dashboard x= y= w= h=
+  sessions                                every live session, plus whether mechaclaude can start one
   action name=open-session|approve|deny id=<sessionKey>
   action name=snapshot [path=<png>]
   settings get [key=]  |  settings set key=value ...

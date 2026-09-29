@@ -10,6 +10,9 @@ final class PanelUIState: ObservableObject {
     @Published var selectedKey: String?
     @Published var showingSettings = false
     @Published var reloadID = 0
+    /// Mirrors `MechaHUDHost.spawnReadiness` (the app pushes it in on every state change), so the
+    /// strip can show the same problem the `sessions` reply and the status menu carry.
+    @Published var spawnReadiness: SpawnReadiness = .ready
 }
 
 enum PanelMetrics {
@@ -121,6 +124,7 @@ struct SessionStripView: View {
             .frame(width: 118, alignment: .leading)
             .frame(maxHeight: .infinity)
             .overlay(WindowDragArea())
+            .help(readinessHelp)
 
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 8) {
@@ -161,12 +165,22 @@ struct SessionStripView: View {
     private var summary: String {
         if bridge.holdingDashboard { return "reconnecting…" }
         switch bridge.reachability {
-        case .connected: return bridge.feed.summary
+        case .connected:
+            guard ui.spawnReadiness.problem != nil else { return bridge.feed.summary }
+            return "can't start sessions"
         case .connecting: return "connecting…"
         case .unreachable: return "dashboard down"
         case .unauthorized: return "tokens rejected"
         case .noTokens: return "no tokens"
         }
+    }
+
+    /// The spawn-readiness problem and its fix, shown as a tooltip on the connection dot; empty
+    /// (no tooltip) once mechaclaude can start a session.
+    private var readinessHelp: String {
+        guard let problem = ui.spawnReadiness.problem else { return "" }
+        guard let fix = ui.spawnReadiness.fix else { return problem }
+        return "\(problem) — \(fix)"
     }
 
     private var emptyText: String {
