@@ -244,7 +244,7 @@ final class HostTests: XCTestCase {
     }
 
     func testManifestDeclaresTheAgentSessionsCapability() {
-        XCTAssertEqual(MechaHUDHost.embeddedManifest.panel(id: "dashboard")?.capabilities, ["agent-sessions"])
+        XCTAssertEqual(MechaHUDHost.embeddedManifest.panel(id: "dashboard")?.capabilities, [HUDAgentSessions.capability])
     }
 
     func testSettingsGetSet() async {

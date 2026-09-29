@@ -66,11 +66,9 @@ public final class MechaHUDHost: HUDPanelHost {
         panels: [HUDManifest.Panel(id: panelID, title: "Claude Sessions", symbol: "terminal",
                                    defaultSize: HUDSize(width: 900, height: 640),
                                    compactSize: HUDSize(width: 900, height: 102),
-                                   // "agent-sessions": MacHUD's broker finds a provider by this
-                                   // capability (open-session/sessions below). HUDKit's own
-                                   // constant lands with wave/voice-3/capability; a plain string
-                                   // until that branch merges into ../hudkit.
-                                   capabilities: ["agent-sessions"],
+                                   // MacHUD's broker finds a provider by this capability
+                                   // (open-session/sessions below).
+                                   capabilities: [HUDAgentSessions.capability],
                                    verbs: ["show", "hide", "toggle", "frame", "mode", "open-session", "approve", "deny"],
                                    kind: .windowed)])
 
