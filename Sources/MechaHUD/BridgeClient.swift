@@ -36,6 +36,10 @@ public final class BridgeClient: ObservableObject, BridgeControlling {
     public var onChange: (() -> Void)?
 
     public let settings: AppSettings
+    /// An offline client never reads the token file or the token settings, never opens the
+    /// stream and sends no control request: a `--snapshot` run uses one so it touches no
+    /// secret and talks to no dashboard.
+    public let offline: Bool
     private let session: URLSession
     private var loop: Task<Void, Never>?
     /// SSE framing state for the current connection. Kept apart from `feed` so buffering a
@@ -44,21 +48,29 @@ public final class BridgeClient: ObservableObject, BridgeControlling {
     private var hold = ReconnectHold()
     private var holdExpiry: Task<Void, Never>?
 
-    public init(settings: AppSettings) {
+    public init(settings: AppSettings, offline: Bool = false) {
         self.settings = settings
+        self.offline = offline
         let config = URLSessionConfiguration.ephemeral
         config.httpCookieAcceptPolicy = .never
         config.httpShouldSetCookies = false
         config.requestCachePolicy = .reloadIgnoringLocalCacheData
         config.timeoutIntervalForResource = 60 * 60 * 24 * 365
         session = URLSession(configuration: config)
-        endpoint = settings.endpoint()
+        endpoint = offline ? nil : settings.endpoint()
+    }
+
+    /// Offline only: shows made-up sessions in the panel (for `--snapshot`).
+    func showSample(feed sample: SessionFeed, reachability sampled: BridgeReachability) {
+        guard offline else { return }
+        feed = sample
+        reachability = sampled
     }
 
     // MARK: Stream
 
     public func start() {
-        guard loop == nil else { return }
+        guard !offline, loop == nil else { return }
         loop = Task { [weak self] in
             while !Task.isCancelled {
                 guard let self else { return }
@@ -80,7 +92,7 @@ public final class BridgeClient: ObservableObject, BridgeControlling {
         stop()
         hold.reset()
         refreshHold()
-        endpoint = settings.endpoint()
+        endpoint = offline ? nil : settings.endpoint()
         start()
     }
 
@@ -183,7 +195,7 @@ public final class BridgeClient: ObservableObject, BridgeControlling {
     // MARK: Control
 
     public func control(sessionKey: String, body: [String: Any]) async throws -> [String: Any] {
-        guard let ep = settings.endpoint() else { throw BridgeError.noTokens }
+        guard !offline, let ep = settings.endpoint() else { throw BridgeError.noTokens }
         guard !ep.controlToken.isEmpty else { throw BridgeError.noControlToken }
         let (data, response) = try await session.data(for: BridgeRequests.control(ep, sessionKey: sessionKey, body: body))
         let code = (response as? HTTPURLResponse)?.statusCode ?? 0

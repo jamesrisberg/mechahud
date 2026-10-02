@@ -45,7 +45,11 @@ public final class MechaHUDApp: NSObject, NSApplicationDelegate {
             snapshotWidgets(to: directory)
             return
         }
-        bridge = BridgeClient(settings: settings)
+        // A `--snapshot` run draws the panel from made-up sessions: its bridge is offline, so it
+        // reads no token, and it has no socket, hotkey, menu bar item or stream.
+        let snapshotting = AppEnvironment.snapshotPath != nil
+        bridge = BridgeClient(settings: settings, offline: snapshotting)
+        if snapshotting { bridge.showSample(feed: SessionsWidgetSample.feed, reachability: .connected) }
         panel = PanelController(bridge: bridge, settings: settings)
         host = MechaHUDHost(presenter: panel, bridge: bridge, settings: settings)
         host.manifest = HUDManifest.main ?? MechaHUDHost.embeddedManifest
@@ -58,8 +62,7 @@ public final class MechaHUDApp: NSObject, NSApplicationDelegate {
         // The `agent-sessions` capability's own verb (not `action`, so MacHUD's broker can ask
         // every provider the same way regardless of its app-specific action names).
         server.register("sessions") { [weak host] _, done in done(host?.sessionsPayload() ?? ["ok": false, "error": "no host"]) }
-        // A `--snapshot` run leaves the socket and the hotkey to a running MechaHUD.
-        if AppEnvironment.snapshotPath == nil, !server.start() { NSLog("MechaHUD: could not start socket at %@", server.path) }
+        if !snapshotting, !server.start() { NSLog("MechaHUD: could not start socket at %@", server.path) }
 
         host.onStateChange = { [weak self] in
             self?.router.publishState()
@@ -78,17 +81,19 @@ public final class MechaHUDApp: NSObject, NSApplicationDelegate {
         panel.onUserMode = { [weak self] mode in self?.changePanel { try $0.setPanelMode(MechaHUDHost.panelID, mode: mode) } }
         panel.onUserHide = { [weak self] in self?.changePanel { try $0.hidePanel(MechaHUDHost.panelID) } }
 
-        if AppEnvironment.hotKeysEnabled, AppEnvironment.snapshotPath == nil {
+        if AppEnvironment.hotKeysEnabled, !snapshotting {
             HUDHotKeyCenter.shared.register(Self.hotKey) { [weak self] in
                 self?.changePanel { try $0.togglePanel(MechaHUDHost.panelID) }
             }
         }
-        setUpStatusItem()
-        // While MacHUD runs, its menu hosts this one and the icon hides (HUDKit menu bar consolidation).
-        router.menuProvider = { [weak self] in self?.statusItem?.menu }
-        // menuBar.consumed lives with the other settings (AppEnvironment.defaults), so MECHAHUD_HOME isolates it.
-        HUDStatusItemPolicy.attach(statusItem, appID: host.manifest.id, store: .defaults(AppEnvironment.defaults))
-        bridge.start()
+        if !snapshotting {
+            setUpStatusItem()
+            // While MacHUD runs, its menu hosts this one and the icon hides (HUDKit menu bar consolidation).
+            router.menuProvider = { [weak self] in self?.statusItem?.menu }
+            // menuBar.consumed lives with the other settings (AppEnvironment.defaults), so MECHAHUD_HOME isolates it.
+            HUDStatusItemPolicy.attach(statusItem, appID: host.manifest.id, store: .defaults(AppEnvironment.defaults))
+            bridge.start()
+        }
         changePanel { try $0.showPanel(MechaHUDHost.panelID) }
         if let path = AppEnvironment.snapshotPath { snapshot(to: path) }
     }
