@@ -6,6 +6,8 @@ All notable changes to MechaHUD are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-10-02
+
 ### Added
 - A desktop widget, **Claude Sessions**, for MacHUD's widget layer: small shows how many sessions
   are working, waiting on a prompt and idle; medium adds the first four sessions with their state.
