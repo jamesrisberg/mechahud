@@ -13,8 +13,10 @@ This page lists what MechaHUD adds.
 
 - Manifest: `Sources/MechaHUD/Resources/machud.json`: app `xyz.machud.mechahud`, socket
   `mechahud`, one panel `dashboard` (`kind: windowed`, title "Claude Sessions", symbol
-  `terminal`, default 900x640, compact 900x102, capability `agent-sessions`).
-  `MechaHUDHost.embeddedManifest` mirrors it for `swift run` and tests.
+  `terminal`, default 900x640, compact 900x102, capability `agent-sessions`) and one widget type
+  `sessions` (`kind: widget`, see [Widget](#widget)). `MechaHUDHost.embeddedManifest` mirrors
+  it for `swift run` and tests. `hello` lists both; `state` and the `panel` verbs know only
+  `dashboard`, and MacHUD gives only `dashboard` a dock button.
 - Capability `agent-sessions`: declared in the `dashboard` panel's `capabilities`, so MacHUD's
   broker (`sessions providers` / `sessions open id=`, see `../machud/docs/API.md`) finds MechaHUD
   as a provider without naming it. A plain string for now, matching HUDKit main
@@ -44,6 +46,7 @@ This page lists what MechaHUD adds.
 | `action approve` / `deny` | `id=` as above | answers the session's permission prompt through `POST /api/control`. `{status, session, sent, ack}`; not ok unless the session is waiting and the bridge applied it |
 | `action snapshot` | `path=` (optional, default `$TMPDIR/mechahud-snapshot.png`) | renders the panel to a PNG (the glass backdrop comes out dark). `{path}` |
 | `sessions` | | the `agent-sessions` capability's own verb (registered directly on the socket, not under `action`, so MacHUD's broker addresses every provider identically): `{sessions: [{id, title, cwd, state}], canStart, problem?, fix?}` |
+| `widget` | `create` / `update` / `remove` / `list` / `sync` / `edit` / `reveal` / `schema` | HUDKit's widget verb for the `sessions` widget, see [Widget](#widget) and HUDKit's [Widgets](https://github.com/jamesrisberg/hudkit/blob/main/docs/CONTRACT.md#widgets) |
 | `quit` | | replies, then quits (the socket file is removed) |
 | `help` | | lists the registered commands |
 
@@ -63,6 +66,26 @@ else `/opt/homebrew/bin`, `/usr/local/bin`, `/usr/bin` for tmux and `~/.local/bi
 anything. The same problem (with its fix) is mirrored in the panel's session strip (as its status
 text and a tooltip on the connection dot) and in a disabled line at the top of MechaHUD's own
 status-bar menu, so it is visible without querying the socket.
+
+## Widget
+
+Widget type `sessions` (`kind: widget`, sizes `small` and `medium`, default `small`,
+`multiple: false`, no per-instance settings schema), served by HUDKit's `HUDWidgetHost` through
+`MechaHUDWidgets`. MacHUD owns the instance record and sends `widget sync` after every connect;
+MechaHUD keeps it in memory.
+
+- It draws from `SessionsWidgetSummary`, derived from the `BridgeClient` feed and reachability
+  that also drive the strip and `state`: counts of working, waiting (any prompt, not only
+  permission) and idle sessions, and the first four sessions with waiting first, then working,
+  then the rest in feed order. While the bridge is not connected, or is being held after a
+  dashboard restart, it shows the reason (`Connecting…`, `Dashboard not running`, `Dashboard
+  rejected tokens`, `No dashboard tokens`, `Reconnecting…`) and no counts.
+- A click on the widget calls `host.onOpen`, which shows the dashboard panel like `panel show`
+  (`reason` absent, so MechaHUD activates); a click on a row runs `action open-session` for that
+  session.
+- Edit mode, reveal, frames and layers are HUDKit's; the widget emits the standard `widget`
+  events (`frame`, `size`, `remove`) and no `configure` (no schema).
+- `--snapshot-widgets <dir>` renders it (see README, Launch flags).
 
 ## Settings
 
@@ -103,4 +126,5 @@ See [menu bar consolidation](https://github.com/jamesrisberg/hudkit/blob/main/do
 | Flag | Effect |
 |---|---|
 | `--snapshot <path.png>` | show the panel, write a PNG of it after 1.5 s, print the path and quit; starts no socket and no hotkey |
+| `--snapshot-widgets <dir>` | write `<dir>/sessions-<size>.png` for each widget size with sample sessions (plus `-empty` and `-down` variants), print the paths and quit; starts no socket, bridge or hotkey, so it reads no tokens |
 | `ctl <command> [key=value ...]` | run as the CLI; the app does not launch |

@@ -27,7 +27,9 @@ public protocol BridgeControlling: AnyObject {
     func control(sessionKey: String, body: [String: Any]) async throws -> [String: Any]
 }
 
-/// MechaHUD's `HUDPanelHost`: one panel, `dashboard`.
+/// MechaHUD's `HUDPanelHost`: one panel, `dashboard`. The manifest also declares a widget type,
+/// `sessions`, which `MechaHUDWidgets` serves; it is not a panel, so the host's states and
+/// `panel` commands never include it.
 ///
 /// - `panel show/hide/toggle/frame/mode` drive the `PanelPresenting`; `mode parked` honours
 ///   and remembers the `edge=`/`peek=` MacHUD passes (HUDKit 0.2).
@@ -70,7 +72,11 @@ public final class MechaHUDHost: HUDPanelHost {
                                    // (open-session/sessions below).
                                    capabilities: [HUDAgentSessions.capability],
                                    verbs: ["show", "hide", "toggle", "frame", "mode", "open-session", "approve", "deny"],
-                                   kind: .windowed)])
+                                   kind: .windowed),
+                 // A desktop widget (HUDKit 0.3): working / waiting / idle counts and sessions.
+                 HUDManifest.Panel(id: "sessions", title: "Claude Sessions", symbol: "terminal", kind: .widget,
+                                   widget: HUDWidgetSpec(sizes: [.small, .medium], defaultSize: .small,
+                                                         multiple: false))])
 
     public weak var presenter: PanelPresenting?
     public weak var bridge: BridgeControlling?
