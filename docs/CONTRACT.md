@@ -125,6 +125,6 @@ See [menu bar consolidation](https://github.com/jamesrisberg/hudkit/blob/main/do
 
 | Flag | Effect |
 |---|---|
-| `--snapshot <path.png>` | show the panel, write a PNG of it after 1.5 s, print the path and quit; starts no socket and no hotkey |
+| `--snapshot <path.png>` | show the panel, write a PNG of it after 1.5 s, print the path and quit; draws made-up sessions from an offline bridge (`BridgeClient(offline: true)`): starts no socket, stream, hotkey or menu bar item and reads no token file or token setting |
 | `--snapshot-widgets <dir>` | write `<dir>/sessions-<size>.png` for each widget size with sample sessions (plus `-empty` and `-down` variants), print the paths and quit; starts no socket, bridge or hotkey, so it reads no tokens |
 | `ctl <command> [key=value ...]` | run as the CLI; the app does not launch |
