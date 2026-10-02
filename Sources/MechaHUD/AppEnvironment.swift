@@ -49,6 +49,13 @@ enum AppEnvironment {
         return (args[i + 1] as NSString).expandingTildeInPath
     }
 
+    /// `--snapshot-widgets <dir>` on the command line: write a PNG of each widget size and quit.
+    static var widgetSnapshotDirectory: String? {
+        let args = CommandLine.arguments
+        guard let i = args.firstIndex(of: "--snapshot-widgets"), args.indices.contains(i + 1) else { return nil }
+        return (args[i + 1] as NSString).expandingTildeInPath
+    }
+
     private static func nonEmpty(_ key: String) -> String? {
         environment[key].flatMap { $0.isEmpty ? nil : $0 }
     }

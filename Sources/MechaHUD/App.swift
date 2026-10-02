@@ -14,6 +14,7 @@ public final class MechaHUDApp: NSObject, NSApplicationDelegate {
     private var panel: PanelController!
     private var server: HUDSocketServer!
     private var router: HUDControlRouter!
+    private var widgets: MechaHUDWidgets!
     private var statusItem: NSStatusItem!
     /// Disabled line (with its separator) shown only while `MechaHUDHost.spawnReadiness` has a
     /// problem: mirrors the `sessions` reply's `problem`/`fix` where the user actually looks.
@@ -34,6 +35,16 @@ public final class MechaHUDApp: NSObject, NSApplicationDelegate {
 
     public func applicationDidFinishLaunching(_ notification: Notification) {
         HUDEditMenu.install(appName: "MechaHUD")
+        // The `sessions` widget type; its model is fed from the bridge client below.
+        widgets = MechaHUDWidgets(
+            manifest: HUDManifest.main ?? MechaHUDHost.embeddedManifest,
+            openDashboard: { [weak self] in self?.changePanel { try $0.showPanel(MechaHUDHost.panelID) } },
+            openSession: { [weak self] key in self?.host.performAction("open-session", args: ["id": key]) { _ in } })
+        // `--snapshot-widgets` needs neither the bridge (it would read the token file) nor a socket.
+        if let directory = AppEnvironment.widgetSnapshotDirectory {
+            snapshotWidgets(to: directory)
+            return
+        }
         bridge = BridgeClient(settings: settings)
         panel = PanelController(bridge: bridge, settings: settings)
         host = MechaHUDHost(presenter: panel, bridge: bridge, settings: settings)
@@ -42,6 +53,8 @@ public final class MechaHUDApp: NSObject, NSApplicationDelegate {
         server = HUDSocketServer(path: AppEnvironment.socketPath, label: "xyz.machud.mechahud.socket")
         router = HUDControlRouter(host: host, server: server, manifest: host.manifest)
         router.install()
+        // Set before the socket starts: MacHUD sends `widget sync` as soon as it connects.
+        router.widgetHost = widgets.host
         // The `agent-sessions` capability's own verb (not `action`, so MacHUD's broker can ask
         // every provider the same way regardless of its app-specific action names).
         server.register("sessions") { [weak host] _, done in done(host?.sessionsPayload() ?? ["ok": false, "error": "no host"]) }
@@ -59,6 +72,8 @@ public final class MechaHUDApp: NSObject, NSApplicationDelegate {
         bridge.onChange = { [weak self] in
             guard let self else { return }
             self.host.update(feed: self.bridge.feed, reachability: self.bridge.reachability)
+            self.widgets.model.update(feed: self.bridge.feed, reachability: self.bridge.reachability,
+                                      reconnecting: self.bridge.holdingDashboard)
         }
         panel.onUserMode = { [weak self] mode in self?.changePanel { try $0.setPanelMode(MechaHUDHost.panelID, mode: mode) } }
         panel.onUserHide = { [weak self] in self?.changePanel { try $0.hidePanel(MechaHUDHost.panelID) } }
@@ -93,6 +108,29 @@ public final class MechaHUDApp: NSObject, NSApplicationDelegate {
                 NSApp.terminate(nil)
             }
         }
+    }
+
+    /// `--snapshot-widgets <dir>`: render the `sessions` widget at every size, with sample sessions
+    /// and with the dashboard down, to `<dir>/sessions-<size>[-down].png`, then quit. Starts no
+    /// socket, bridge or hotkey, so it reads nothing from mechaclaude.
+    private func snapshotWidgets(to directory: String) {
+        let url = URL(fileURLWithPath: directory, isDirectory: true)
+        do {
+            try FileManager.default.createDirectory(at: url, withIntermediateDirectories: true)
+            for (suffix, feed, reachability) in [("", SessionsWidgetSample.feed, BridgeReachability.connected),
+                                                 ("-empty", SessionFeed(), .connected),
+                                                 ("-down", SessionFeed(), .unreachable)] {
+                widgets.model.update(feed: feed, reachability: reachability, reconnecting: false)
+                for size in [HUDWidgetSize.small, .medium] {
+                    let file = url.appendingPathComponent("sessions-\(size.rawValue)\(suffix).png")
+                    try widgets.host.writeSnapshot(type: MechaHUDWidgets.sessionsType, size: size, to: file)
+                    print(file.path)
+                }
+            }
+        } catch {
+            FileHandle.standardError.write(Data("MechaHUD: widget snapshot failed: \(error)\n".utf8))
+        }
+        NSApp.terminate(nil)
     }
 
     /// A panel change from the app's own UI (hotkey, menu, strip buttons): apply it, then

@@ -264,12 +264,35 @@ final class HostTests: XCTestCase {
         XCTAssertEqual(manifest.socketPath, HUDSocket.path(for: "mechahud"))
     }
 
+    func testManifestServesTheSessionsWidgetNextToTheDashboard() throws {
+        let manifest = MechaHUDHost.embeddedManifest
+        XCTAssertEqual(manifest.panels.map(\.id), ["dashboard", "sessions"])
+        let widget = try XCTUnwrap(manifest.panel(id: "sessions"))
+        XCTAssertEqual(widget.kind, .widget)
+        XCTAssertEqual(widget.widget?.sizes, [.small, .medium])
+        XCTAssertEqual(widget.widget?.defaultSize, .small)
+        XCTAssertEqual(widget.widget?.multiple, false, "one fleet, one widget")
+        XCTAssertEqual(manifest.dockPanels.map(\.id), ["dashboard"], "the widget gets no dock button")
+        XCTAssertEqual(manifest.widgetPanels.map(\.id), ["sessions"])
+    }
+
+    func testWidgetPanelIsNotAPanelTheHostControls() async {
+        XCTAssertEqual(host.panelStates.map(\.id), ["dashboard"], "state lists the dashboard only")
+        let shown = await run("panel", ["show": "1", "id": "sessions"])
+        XCTAssertEqual(shown["ok"] as? Bool, false)
+        XCTAssertTrue(presenter.log.isEmpty, "a panel command for a widget type never reaches the window")
+        let hello = await run("hello")
+        let kinds = (hello["panels"] as? [[String: Any]])?.map { $0["kind"] as? String }
+        XCTAssertEqual(kinds, ["windowed", "widget"])
+    }
+
     func testDashboardPanelIsWindowed() async throws {
         let url = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent()
             .deletingLastPathComponent().appendingPathComponent("Sources/MechaHUD/Resources/machud.json")
         let raw = try JSONSerialization.jsonObject(with: Data(contentsOf: url)) as? [String: Any]
         let panel = (raw?["panels"] as? [[String: Any]])?.first
         XCTAssertEqual(panel?["kind"] as? String, "windowed", "the manifest states the kind explicitly")
+        XCTAssertEqual((raw?["panels"] as? [[String: Any]])?.last?["kind"] as? String, "widget")
         XCTAssertEqual(MechaHUDHost.embeddedManifest.panel(id: "dashboard")?.kind, .windowed)
         let hello = await run("hello")
         let panels = hello["panels"] as? [[String: Any]]

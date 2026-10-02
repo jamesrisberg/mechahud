@@ -6,6 +6,17 @@ All notable changes to MechaHUD are documented here. The format follows
 
 ## [Unreleased]
 
+### Added
+- A desktop widget, **Claude Sessions**, for MacHUD's widget layer: small shows how many sessions
+  are working, waiting on a prompt and idle; medium adds the first four sessions with their state.
+  Clicking it opens the dashboard, clicking a session opens that session. It says so when the
+  dashboard is down instead of showing old numbers. It needs a MacHUD built on HUDKit 0.3 or later.
+- `--snapshot-widgets <dir>` writes a PNG of the widget at each size, without contacting the dashboard.
+
+### Changed
+- Built with HUDKit 0.3: `hello` reports contract version 0.3.0 and lists the widget panel next to
+  `dashboard`; MacHUD's tool dock still shows only `dashboard`.
+
 ## [0.2.0] - 2026-09-29
 
 ### Added

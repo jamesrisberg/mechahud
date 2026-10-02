@@ -250,16 +250,7 @@ struct SessionPill: View {
         return parts.joined(separator: " · ")
     }
 
-    private var dotColor: Color {
-        switch row.status {
-        case .working: return .green
-        case .waiting: return .orange
-        case .idle: return .gray
-        case .connecting: return .yellow
-        case .closed: return .red.opacity(0.6)
-        case .other: return .purple
-        }
-    }
+    private var dotColor: Color { row.status.color }
 }
 
 struct PillButtonStyle: ButtonStyle {

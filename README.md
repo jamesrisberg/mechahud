@@ -29,6 +29,22 @@ Tokens are read from `web-tokens.json` in mechaclaude's state directory on every
 so an isolated MechaHUD run with `MCLAUDE_STATE_DIR` pointed elsewhere never reads the real
 bridge's tokens.
 
+### Desktop widget
+
+MechaHUD also serves one desktop widget, `sessions`, that MacHUD places on the desktop (MacHUD's
+widget layer: gallery, edit mode, reveal). It draws from the same session feed as the strip, so
+it needs no second connection to the dashboard:
+
+- **small**: how many sessions are working, waiting on a prompt and idle.
+- **medium**: the same counts in the header and up to four sessions with their state, those
+  waiting first; "+N more" when there are others.
+- Clicking the widget opens the dashboard panel; clicking a row in the medium widget opens the
+  dashboard on that session. While the dashboard is down or reconnecting the widget says so
+  instead of showing stale counts.
+- One instance (the type is declared `multiple: false`); no per-instance settings.
+
+The widget needs a MacHUD built on HUDKit 0.3 or later.
+
 ## Install
 
 Check out HUDKit (the shared kit and build scripts) next to this repo, then install:
@@ -55,11 +71,12 @@ gear button opens Settings. MechaHUD takes no drops.
 
 ## MacHUD contract
 
-Panel `dashboard`, kind `windowed`, socket `mechahud`, capability `agent-sessions` (so MacHUD's
+Panel `dashboard`, kind `windowed`, widget type `sessions` (a `kind: widget` panel), socket
+`mechahud`, capability `agent-sessions` (so MacHUD's
 broker finds MechaHUD as a session provider without naming it). Verbs: the HUDKit set (`hello`,
 `state`, `subscribe`, `panel show|hide|toggle|frame|mode`, `settings get|set`, `action`, `quit`)
-plus the actions `open-session`, `approve`, `deny` and `snapshot`, and the capability's own
-`sessions` verb. `state` reports the number of sessions waiting on a permission prompt as the
+plus the `widget` verb, the actions `open-session`, `approve`, `deny` and `snapshot`, and the
+capability's own `sessions` verb. `state` reports the number of sessions waiting on a permission prompt as the
 badge. Full reference: [docs/CONTRACT.md](docs/CONTRACT.md).
 
 ```sh
@@ -73,6 +90,9 @@ mechahud action name=open-session id=claude:1234
 mechahud action name=approve id=claude:1234      # deny likewise
 mechahud settings set mechaclaudePath=~/dev/mechaclaude
 mechahud action name=snapshot path=/tmp/p.png    # render the panel to a PNG
+mechahud widget list                             # the sessions widget's instances, edit and reveal state
+mechahud widget create instance=a type=sessions size=medium frame=40,40,356,170
+mechahud widget remove instance=a
 mechahud quit
 ```
 
@@ -100,6 +120,7 @@ swift test          # MechaHUDKitTests + MechaHUDTests
 ./build.sh          # build/MechaHUD.app (release; ./build.sh debug for a debug build)
 ./install.sh        # build, install to /Applications, link the CLI, launch
 build/MechaHUD.app/Contents/MacOS/MechaHUD --snapshot /tmp/mechahud.png   # write a PNG of the panel and quit
+build/MechaHUD.app/Contents/MacOS/MechaHUD --snapshot-widgets /tmp/mechahud-widgets   # a PNG per widget size and quit
 ```
 
 `build.sh` and `install.sh` call HUDKit's shared `scripts/hud-build.sh` and `scripts/hud-install.sh`
@@ -107,8 +128,9 @@ build/MechaHUD.app/Contents/MacOS/MechaHUD --snapshot /tmp/mechahud.png   # writ
 are in [CHANGELOG.md](CHANGELOG.md).
 
 Layout: `Sources/MechaHUDKit` is the pure core (the SSE parser and fleet model, bridge request
-builders and token file, settings, the dashboard pane decision); `Sources/MechaHUD` is the app
-(menu bar, `MechaHUDHost`, bridge client, glass panel, WebView) with its bundle files in
+builders and token file, settings, the dashboard pane decision, the widget's summary);
+`Sources/MechaHUD` is the app (menu bar, `MechaHUDHost`, bridge client, glass panel, WebView,
+the `sessions` widget) with its bundle files in
 `Resources/`; `Sources/MechaHUDCLI` is the `mechahud` command.
 
 ## Isolation env vars for testing

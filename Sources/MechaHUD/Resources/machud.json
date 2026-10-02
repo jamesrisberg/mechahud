@@ -12,6 +12,13 @@
       "capabilities": ["agent-sessions"],
       "verbs": ["show", "hide", "toggle", "frame", "mode", "open-session", "approve", "deny"],
       "kind": "windowed"
+    },
+    {
+      "id": "sessions",
+      "title": "Claude Sessions",
+      "symbol": "terminal",
+      "kind": "widget",
+      "widget": {"sizes": ["small", "medium"], "defaultSize": "small", "multiple": false}
     }
   ]
 }
